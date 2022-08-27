@@ -1,0 +1,13 @@
+{
+  "scripts": {
+    "start": "nodemon --ext ts --watch src --exec npm run main",
+    "check": "tsc --watch",
+    "main": "node -r esbuild-register src/main.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^18.7.13",
+    "esbuild": "^0.15.5",
+    "esbuild-register": "^3.3.3",
+    "typescript": "^4.8.2"
+  }
+}
