@@ -1,5 +1,3 @@
-import { workerData } from 'worker_threads';
-
 export const tokens = {
     ILLEGAL: 'ILLEGAL',
     EOF: 'EOF',
