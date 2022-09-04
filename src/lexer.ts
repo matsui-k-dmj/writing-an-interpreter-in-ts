@@ -1,4 +1,4 @@
-import { Token, tokens } from 'token';
+import { lookupIdent, Token, tokens } from 'token';
 
 export class Lexer {
     constructor(
@@ -24,7 +24,35 @@ export class Lexer {
         this.readPosition += 1;
     };
 
+    /** 1単語読む。keyworkかidentifierかは分からない */
+    readWord = () => {
+        const position = this.position;
+        while (isLetter(this.ch)) {
+            this.readChar();
+        }
+        // falseになったときにreadCharせずここにくるので、そのときのpositionは含まなくていい
+        return this.input.slice(position, this.position);
+    };
+
+    /** 1整数読む。 */
+    readInteger = () => {
+        const position = this.position;
+        while (isCharNumber(this.ch)) {
+            this.readChar();
+        }
+        // falseになったときにreadCharせずここにくるので、そのときのpositionは含まなくていい
+        return this.input.slice(position, this.position);
+    };
+
+    skipWhitespeces = () => {
+        while (this.ch != null && [' ', '\t', '\n', '\r'].includes(this.ch)) {
+            this.readChar();
+        }
+    };
+
     nextToken = () => {
+        this.skipWhitespeces();
+
         let tok: Token;
         switch (this.ch) {
             case tokens.assign:
@@ -55,10 +83,27 @@ export class Lexer {
                 tok = { type: tokens.EOF, literal: '' };
                 break;
             default:
-                tok = { type: tokens.ILLEGAL, literal: '' };
-                break;
+                if (isLetter(this.ch)) {
+                    const literal = this.readWord();
+                    const type = lookupIdent(literal);
+                    tok = { type, literal };
+                    return tok;
+                } else if (isCharNumber(this.ch)) {
+                    tok = { type: tokens.int, literal: this.readInteger() };
+                    return tok;
+                } else {
+                    tok = { type: tokens.ILLEGAL, literal: '' };
+                }
         }
         this.readChar();
         return tok;
     };
+}
+
+const isLetter = (ch: string | null) => {
+    return ch != null && ch.length === 1 && (/[a-zA-z]/.test(ch) || ch === '_');
+};
+
+function isCharNumber(c: string | null) {
+    return c != null && c >= '0' && c <= '9';
 }
