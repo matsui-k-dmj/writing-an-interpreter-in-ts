@@ -9,6 +9,15 @@ export const tokens = {
     // 演算子
     assign: '=',
     plus: '+',
+    minus: '-',
+    bang: '!',
+    asterisk: '*',
+    slash: '/',
+    lessThan: '<',
+    greaterThan: '>',
+
+    eq: '==',
+    notEq: '!=',
 
     // デリミタ
     comma: ',',
@@ -22,11 +31,21 @@ export const tokens = {
     // キーワード
     function: 'function',
     let: 'let',
+    if: 'if',
+    else: 'else',
+    return: 'return',
+    true: 'true',
+    false: 'false',
 } as const;
 
 export const keywords = new Map([
     ['fn', tokens.function],
     ['let', tokens.let],
+    ['if', tokens.if],
+    ['else', tokens.else],
+    ['return', tokens.return],
+    ['true', tokens.true],
+    ['false', tokens.false],
 ]);
 
 export const lookupIdent = (word: string) => {

@@ -24,6 +24,15 @@ export class Lexer {
         this.readPosition += 1;
     };
 
+    /** readPositionから読むだけでpositionは進めない */
+    peekChar = () => {
+        if (this.readPosition >= this.input.length) {
+            return null;
+        } else {
+            return this.input[this.readPosition];
+        }
+    };
+
     /** 1単語読む。keyworkかidentifierかは分からない */
     readWord = () => {
         const position = this.position;
@@ -55,9 +64,27 @@ export class Lexer {
 
         let tok: Token;
         switch (this.ch) {
-            case tokens.assign:
-                tok = { type: tokens.assign, literal: this.ch };
-                break;
+            case '=':
+                if (this.peekChar() === '=') {
+                    this.readChar();
+                    tok = {
+                        type: tokens.eq,
+                        literal: '==',
+                    };
+                    break;
+                } else {
+                    tok = { type: tokens.assign, literal: this.ch };
+                    break;
+                }
+            case '!':
+                if (this.peekChar() === '=') {
+                    this.readChar();
+                    tok = { type: tokens.notEq, literal: '!=' };
+                    break;
+                } else {
+                    tok = { type: tokens.bang, literal: this.ch };
+                    break;
+                }
             case tokens.semicolon:
                 tok = { type: tokens.semicolon, literal: this.ch };
                 break;
@@ -78,6 +105,25 @@ export class Lexer {
                 break;
             case tokens.rightBrace:
                 tok = { type: tokens.rightBrace, literal: this.ch };
+                break;
+            case tokens.minus:
+                tok = { type: tokens.minus, literal: this.ch };
+                break;
+            case tokens.rightBrace:
+                tok = { type: tokens.rightBrace, literal: this.ch };
+                break;
+
+            case tokens.asterisk:
+                tok = { type: tokens.asterisk, literal: this.ch };
+                break;
+            case tokens.slash:
+                tok = { type: tokens.slash, literal: this.ch };
+                break;
+            case tokens.lessThan:
+                tok = { type: tokens.lessThan, literal: this.ch };
+                break;
+            case tokens.greaterThan:
+                tok = { type: tokens.greaterThan, literal: this.ch };
                 break;
             case null:
                 tok = { type: tokens.EOF, literal: '' };
