@@ -28,7 +28,7 @@ const start = async () => {
         const text = await question(prompt);
         const lexer = new Lexer(text);
         while (true) {
-            const tok = lexer.nextToken();
+            const tok = lexer.goNextToken();
             console.log(tok);
             if (tok.type === tokens.EOF) {
                 break;

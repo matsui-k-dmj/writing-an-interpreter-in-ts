@@ -20,10 +20,10 @@ it('nextToken non-letter-character', () => {
     }));
     const lexer = new Lexer(input);
     for (const expectedToken of answers) {
-        const token = lexer.nextToken();
+        const token = lexer.goNextToken();
         expect(token).toStrictEqual(expectedToken);
     }
-    const token = lexer.nextToken();
+    const token = lexer.goNextToken();
     expect(token).toStrictEqual({ type: tokens.EOF, literal: '' });
 });
 
@@ -130,9 +130,9 @@ if (5 < 10) {
     }));
     const lexer = new Lexer(input);
     for (const expectedToken of answers) {
-        const token = lexer.nextToken();
+        const token = lexer.goNextToken();
         expect(token).toStrictEqual(expectedToken);
     }
-    const token = lexer.nextToken();
+    const token = lexer.goNextToken();
     expect(token).toStrictEqual({ type: tokens.EOF, literal: '' });
 });

@@ -1,5 +1,6 @@
 import { lookupIdent, Token, tokens } from 'token';
 
+/** 字句解析マシーン */
 export class Lexer {
     constructor(
         public input: string,
@@ -59,7 +60,7 @@ export class Lexer {
         }
     };
 
-    nextToken = () => {
+    goNextToken = () => {
         this.skipWhitespeces();
 
         let tok: Token;
