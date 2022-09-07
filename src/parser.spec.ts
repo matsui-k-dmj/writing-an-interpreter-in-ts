@@ -12,7 +12,12 @@ it('let statements', () => {
     const answers = ['x', 'y', 'foobar'] as const;
 
     const lexer = new Lexer(input);
-    const astRoot = new Parser(lexer).parseProgram();
+    const parser = new Parser(lexer);
+    const astRoot = parser.parseProgram();
+
+    if (parser.errors.length > 0) {
+        throw new Error(parser.errors.join('\n'));
+    }
 
     for (const i of answers.keys()) {
         const statement = astRoot.statementArray[i];

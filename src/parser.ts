@@ -6,6 +6,8 @@ import { Token, tokens } from 'token';
 export class Parser {
     currentToken: Token = { type: tokens.ILLEGAL, literal: '' };
     peekToken: Token = { type: tokens.ILLEGAL, literal: '' };
+    /** デバックとテスト用 */
+    errors: string[] = [];
     constructor(public lexer: Lexer) {
         // 二つ進めるとcurrentTokenとpeekTokenが読まれる
         this.goNextToken();
@@ -48,14 +50,28 @@ export class Parser {
         }
     };
 
+    /** 次のトークンが特定のタイプなら進む */
+    expectPeekGoNext = (tokenType: Token['type']) => {
+        if (this.getPeekToken().type === tokenType) {
+            this.goNextToken();
+            return true;
+        } else {
+            this.errors.push(
+                `expect ${tokenType}, get ${
+                    this.getPeekToken().literal
+                } instead. current token is ${this.getCurrentToken().literal}`
+            );
+            return false;
+        }
+    };
+
     /**
      * currentToken = let から let文をパースする
      * let, ident, assign, expression, semicolon
      */
     parseLetStatement: () => LetStatement | null = () => {
         // let -> ident
-        if (this.getPeekToken().type !== tokens.ident) return null;
-        this.goNextToken();
+        if (!this.expectPeekGoNext(tokens.ident)) return null;
 
         const ident = new Identifier(
             {
@@ -66,8 +82,7 @@ export class Parser {
         );
 
         // ident -> assign
-        if (this.getPeekToken().type !== tokens.assign) return null;
-        this.goNextToken();
+        if (!this.expectPeekGoNext(tokens.assign)) return null;
 
         // TODO: parse expression
         while (this.getCurrentToken().type !== tokens.semicolon) {
