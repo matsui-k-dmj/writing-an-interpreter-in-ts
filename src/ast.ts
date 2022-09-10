@@ -43,9 +43,7 @@ export class Identifier implements Expression {
     tokenLiteral: () => string = () => this.token.literal;
 }
 
-/**
- * let 文
- */
+/** let 文 */
 export class LetStatement implements Statement {
     constructor(
         public token: { type: typeof tokens.let; literal: string },
@@ -53,6 +51,17 @@ export class LetStatement implements Statement {
         public name: Identifier,
         /** 右辺の値を生成する式 */
         public value: Expression
+    ) {}
+    nodeType = 'statement' as const;
+    tokenLiteral: () => string = () => this.token.literal;
+}
+
+/** return 文 */
+export class ReturnStatement implements Statement {
+    constructor(
+        public token: { type: typeof tokens.return; literal: string },
+        /** 右辺の値を生成する式 */
+        public returnValue: Expression
     ) {}
     nodeType = 'statement' as const;
     tokenLiteral: () => string = () => this.token.literal;

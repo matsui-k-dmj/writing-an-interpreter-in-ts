@@ -1,4 +1,10 @@
-import { AstRoot, Identifier, LetStatement, Statement } from 'ast';
+import {
+    AstRoot,
+    Identifier,
+    LetStatement,
+    ReturnStatement,
+    Statement,
+} from 'ast';
 import { Lexer } from 'lexer';
 import { Token, tokens } from 'token';
 
@@ -27,7 +33,7 @@ export class Parser {
     };
 
     /** プログラム全体をパース */
-    parseProgram: () => AstRoot = () => {
+    parseProgram = (): AstRoot => {
         const astRoot = new AstRoot([]);
         while (this.currentToken.type !== tokens.EOF) {
             const statement = this.parseStatement();
@@ -40,11 +46,12 @@ export class Parser {
     };
 
     /** 文の最初にあるトークンの場所から初めて文をパースする */
-    parseStatement: () => Statement | null = () => {
+    parseStatement = (): Statement | null => {
         switch (this.currentToken.type) {
             case tokens.let:
                 return this.parseLetStatement();
-
+            case tokens.return:
+                return this.parseReturnStatement();
             default:
                 return null;
         }
@@ -69,7 +76,7 @@ export class Parser {
      * currentToken = let から let文をパースする
      * let, ident, assign, expression, semicolon
      */
-    parseLetStatement: () => LetStatement | null = () => {
+    parseLetStatement = (): LetStatement | null => {
         // let -> ident
         if (!this.expectPeekGoNext(tokens.ident)) return null;
 
@@ -92,6 +99,28 @@ export class Parser {
         return new LetStatement(
             { type: tokens.let, literal: tokens.let },
             ident,
+            {
+                nodeType: 'expression',
+                tokenLiteral: () => '',
+            }
+        );
+    };
+
+    /**
+     * currentToken = return から return文をパースする
+     * return, expression, semicolon
+     */
+    parseReturnStatement = (): ReturnStatement | null => {
+        this.goNextToken();
+        // TODO: parse expression
+        while (this.getCurrentToken().type !== tokens.semicolon) {
+            this.goNextToken();
+        }
+        return new ReturnStatement(
+            {
+                type: tokens.return,
+                literal: tokens.return,
+            },
             {
                 nodeType: 'expression',
                 tokenLiteral: () => '',
