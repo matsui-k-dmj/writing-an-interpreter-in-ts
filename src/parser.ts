@@ -1,5 +1,6 @@
 import {
     AstRoot,
+    BooleanLiteral,
     Expression,
     ExpresstionStatement,
     Identifier,
@@ -62,6 +63,8 @@ export class Parser {
             [tokens.int, this.parseIntegerLiteral],
             [tokens.bang, this.parsePrefixOperation],
             [tokens.minus, this.parsePrefixOperation],
+            [tokens.true, this.parseBooleanLiteral],
+            [tokens.false, this.parseBooleanLiteral],
         ]);
     }
 
@@ -254,6 +257,14 @@ export class Parser {
                 literal: this.currentToken.literal,
             },
             num
+        );
+    };
+
+    /** true | false トークンからブーリアンリテラル式のパース */
+    parseBooleanLiteral = (): Expression | null => {
+        return new BooleanLiteral(
+            this.currentToken,
+            this.currentToken.type === tokens.true
         );
     };
 

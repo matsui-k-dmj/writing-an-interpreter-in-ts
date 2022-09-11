@@ -2,6 +2,7 @@ import { assert, expect, it } from 'vitest';
 import { Lexer } from 'lexer';
 import { Parser } from 'parser';
 import {
+    BooleanLiteral,
     Expression,
     ExpresstionStatement,
     Identifier,
@@ -19,9 +20,14 @@ const checkParseErrors = (parser: Parser) => {
     }
 };
 
-const checkIntegerLiteral = (expression: Expression, expectedNum: number) => {
+const checkIntegerLiteral = (expression: Expression, answer: number) => {
     assert(expression instanceof IntegerLiteral);
-    expect(expression.value).toBe(expectedNum);
+    expect(expression.value).toBe(answer);
+};
+
+const checkBooleanLiteral = (expression: Expression, answer: boolean) => {
+    assert(expression instanceof BooleanLiteral);
+    expect(expression.value).toBe(answer);
 };
 
 it.concurrent('let statements', () => {
@@ -94,6 +100,26 @@ it.concurrent('integer literal expression', () => {
     const statement = astRoot.statementArray[0];
     assert(statement instanceof ExpresstionStatement);
     checkIntegerLiteral(statement.expression, 5);
+});
+
+it.concurrent('boolean literal expression', () => {
+    const input = 'true; false;';
+    const numStatement = 2;
+
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
+    const astRoot = parser.parseProgram();
+    checkParseErrors(parser);
+
+    expect(astRoot.statementArray.length).toBe(numStatement);
+
+    let statement = astRoot.statementArray[0];
+    assert(statement instanceof ExpresstionStatement);
+    checkBooleanLiteral(statement.expression, true);
+
+    statement = astRoot.statementArray[1];
+    assert(statement instanceof ExpresstionStatement);
+    checkBooleanLiteral(statement.expression, false);
 });
 
 it.concurrent('prefix operation expression', () => {
@@ -187,6 +213,7 @@ it.concurrent('precedence', () => {
         ['a + b * c', '(a + (b * c))'],
         ['5 > 4 == 3 / 2', '((5 > 4) == (3 / 2))'],
         ['5 > 4 != 1 - 3 / 2', '((5 > 4) != (1 - (3 / 2)))'],
+        ['true != !false', '(true != (!false))'],
     ];
     for (const [input, expected] of test) {
         const lexer = new Lexer(input);

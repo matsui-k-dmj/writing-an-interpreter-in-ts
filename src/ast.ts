@@ -88,6 +88,14 @@ export class IntegerLiteral implements Expression {
     print: () => string = this.tokenLiteral;
 }
 
+/** booleanリテラル */
+export class BooleanLiteral implements Expression {
+    constructor(public token: Token, public value: boolean) {}
+    nodeType = 'expression' as const;
+    tokenLiteral: () => string = () => this.token.literal;
+    print: () => string = this.tokenLiteral;
+}
+
 /** 前置演算子 */
 export class PrefixOperation implements Expression {
     constructor(
