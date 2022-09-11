@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { tokens, Token } from 'token';
 import { Lexer } from 'lexer';
 
-it('nextToken non-letter-character', () => {
+it.concurrent('nextToken non-letter-character', () => {
     const input = '=+(){},;';
     const _answers = [
         [tokens.assign, '='],

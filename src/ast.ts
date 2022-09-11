@@ -1,4 +1,4 @@
-import { tokens } from 'token';
+import { Token, tokens } from 'token';
 
 export interface Node {
     /** テストとデバッグ用 */
@@ -30,19 +30,6 @@ export class AstRoot implements Node {
     };
 }
 
-/**
- * 識別子
- * let 左辺の識別子は式ではないが、他の識別子は代入されてる値を生成する式なので、単純のためにどちらの場合も式で表す
- */
-export class Identifier implements Expression {
-    constructor(
-        public token: { type: typeof tokens.ident; literal: string },
-        public value: string
-    ) {}
-    nodeType = 'expression' as const;
-    tokenLiteral: () => string = () => this.token.literal;
-}
-
 /** let 文 */
 export class LetStatement implements Statement {
     constructor(
@@ -64,5 +51,37 @@ export class ReturnStatement implements Statement {
         public returnValue: Expression
     ) {}
     nodeType = 'statement' as const;
+    tokenLiteral: () => string = () => this.token.literal;
+}
+
+/** 式文 */
+export class ExpresstionStatement implements Statement {
+    constructor(public token: Token, public expression: Expression) {}
+    nodeType = 'statement' as const;
+    tokenLiteral: () => string = () => this.token.literal;
+}
+
+/**
+ * 識別子 式
+ * let 左辺の識別子は式ではないが、他の識別子は代入されてる値を生成する式なので、単純のためにどちらの場合も式で表す
+ */
+export class Identifier implements Expression {
+    constructor(
+        public token: { type: typeof tokens.ident; literal: string },
+        public value: string
+    ) {}
+    nodeType = 'expression' as const;
+    tokenLiteral: () => string = () => this.token.literal;
+}
+
+/**
+ * 整数リテラル 式
+ */
+export class IntegerLiteral implements Expression {
+    constructor(
+        public token: { type: typeof tokens.int; literal: string },
+        public value: number
+    ) {}
+    nodeType = 'expression' as const;
     tokenLiteral: () => string = () => this.token.literal;
 }

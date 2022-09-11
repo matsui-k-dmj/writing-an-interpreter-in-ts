@@ -52,9 +52,11 @@ export const lookupIdent = (word: string) => {
     return keywords.get(word) ?? tokens.ident;
 };
 
+export type TokenType = typeof tokens[keyof typeof tokens];
+
 export interface Token {
     /** ex) int, ident,... */
-    type: typeof tokens[keyof typeof tokens];
+    type: TokenType;
     /** ex) 5, hoge,... */
     literal: string;
 }

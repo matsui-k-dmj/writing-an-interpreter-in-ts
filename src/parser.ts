@@ -1,12 +1,31 @@
 import {
     AstRoot,
+    Expression,
+    ExpresstionStatement,
     Identifier,
+    IntegerLiteral,
     LetStatement,
     ReturnStatement,
     Statement,
 } from 'ast';
 import { Lexer } from 'lexer';
-import { Token, tokens } from 'token';
+import { Token, tokens, TokenType } from 'token';
+
+/** 前置構文解析関数 */
+type PrefixParse = () => Expression | null;
+/** 中置構文解析関数 */
+type InfixParse = (expression: Expression) => Expression;
+
+/** 演算子の優先順位。順番はindexOfで取る */
+const precedences = [
+    'lowest',
+    'equals',
+    'lessGreater',
+    'sum',
+    'product',
+    'prefex',
+    'call',
+] as const;
 
 /** 構文解析マシーン */
 export class Parser {
@@ -14,10 +33,20 @@ export class Parser {
     peekToken: Token = { type: tokens.ILLEGAL, literal: '' };
     /** デバックとテスト用 */
     errors: string[] = [];
+
+    /** 比較のためにどっちも使ってみる */
+    prefixParseFunctions: Map<TokenType, PrefixParse>;
+    infixParseFunctions: Record<TokenType, InfixParse>;
+
     constructor(public lexer: Lexer) {
         // 二つ進めるとcurrentTokenとpeekTokenが読まれる
         this.goNextToken();
         this.goNextToken();
+
+        this.prefixParseFunctions = new Map([
+            [tokens.ident, this.parseIdentifier],
+            [tokens.int, this.parseIntegerLiteral],
+        ]);
     }
 
     /**
@@ -53,12 +82,12 @@ export class Parser {
             case tokens.return:
                 return this.parseReturnStatement();
             default:
-                return null;
+                return this.parseExpressionStatement();
         }
     };
 
     /** 次のトークンが特定のタイプなら進む */
-    expectPeekGoNext = (tokenType: Token['type']) => {
+    expectPeekGoNext = (tokenType: TokenType) => {
         if (this.getPeekToken().type === tokenType) {
             this.goNextToken();
             return true;
@@ -125,6 +154,58 @@ export class Parser {
                 nodeType: 'expression',
                 tokenLiteral: () => '',
             }
+        );
+    };
+
+    /**
+     * currentTokenが他の文(let, return)以外のときに式をパースする
+     */
+    parseExpressionStatement = (): ExpresstionStatement | null => {
+        const currentToken = this.getCurrentToken();
+        const expression = this.parseExpression(precedences.indexOf('lowest'));
+        if (expression == null) return null;
+
+        // 式の最後のセミコロンは無視する
+        if (this.getPeekToken().type === tokens.semicolon) {
+            this.goNextToken();
+        }
+        return new ExpresstionStatement(currentToken, expression);
+    };
+
+    /** 現在のトークンに応じて式パース関数を使う */
+    parseExpression = (precedence: number): Expression | null => {
+        const prefixParse = this.prefixParseFunctions.get(
+            this.getCurrentToken().type
+        );
+        if (prefixParse == null) return null;
+
+        const leftExpression = prefixParse();
+        if (leftExpression == null) return null;
+
+        return leftExpression;
+    };
+
+    /** identトークンから識別子式のパース */
+    parseIdentifier = (): Expression => {
+        return new Identifier(
+            { type: 'ident', literal: this.currentToken.literal },
+            this.currentToken.literal
+        );
+    };
+
+    /** intトークンから整数リテラル式のパース */
+    parseIntegerLiteral = (): Expression | null => {
+        const num = Number(this.currentToken.literal);
+        if (Number.isNaN(num)) {
+            this.errors.push(`${this.currentToken.literal} is NaN`);
+            return null;
+        }
+        return new IntegerLiteral(
+            {
+                type: 'int',
+                literal: this.currentToken.literal,
+            },
+            num
         );
     };
 }
