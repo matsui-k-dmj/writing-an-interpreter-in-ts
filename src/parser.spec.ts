@@ -226,3 +226,33 @@ it.concurrent('precedence', () => {
         expect(statement.expression.print()).toBe(expected);
     }
 });
+
+it.concurrent('precedence groups', () => {
+    const test = [
+        ['-(a * b)', '(-(a * b))'],
+        ['a + (b + c)', '(a + (b + c))'],
+        ['(a + b) * c', '((a + b) * c)'],
+        ['5 > (4 == 3) / 2', '(5 > ((4 == 3) / 2))'],
+        ['5 > 4 != (1 - 3) / 2', '((5 > 4) != ((1 - 3) / 2))'],
+        ['!(true != !false)', '(!(true != (!false)))'],
+        ['1 * ((2 + 3 * 5) * (4 - 5))', '(1 * ((2 + (3 * 5)) * (4 - 5)))'],
+    ];
+    for (const [input, expected] of test) {
+        const lexer = new Lexer(input);
+        const parser = new Parser(lexer);
+        const astRoot = parser.parseProgram();
+        checkParseErrors(parser);
+        expect(astRoot.statementArray.length).toBe(1);
+        let statement = astRoot.statementArray[0];
+        assert(statement instanceof ExpresstionStatement);
+        expect(statement.expression.print()).toBe(expected);
+    }
+});
+
+it.concurrent('group is not closed', () => {
+    const input = 'c + (a + b';
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
+    parser.parseProgram();
+    expect(parser.errors[0]).toBe('no ) after (a + b)');
+});

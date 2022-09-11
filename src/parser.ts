@@ -65,6 +65,7 @@ export class Parser {
             [tokens.minus, this.parsePrefixOperation],
             [tokens.true, this.parseBooleanLiteral],
             [tokens.false, this.parseBooleanLiteral],
+            [tokens.leftParen, this.parseGroupedExpression],
         ]);
     }
 
@@ -304,5 +305,21 @@ export class Parser {
             rightExpression,
             leftExpression
         );
+    };
+
+    /** ( から始まって ) までパースする */
+    parseGroupedExpression = (): Expression | null => {
+        this.goNextToken(); // currentは ( の次のトークン
+        const expression = this.parseExpression(
+            precedenceOrder.indexOf('lowest')
+        );
+        // ここまででcurrentは式の最後のトークンになってるから、次には ) があるべき。無いと()が閉じられてない。
+        if (this.getPeekToken().type === tokens.rightParen) {
+            this.goNextToken(); // currentはrigthParen
+        } else {
+            this.errors.push(`no ) after ${expression?.print()}`);
+            return null;
+        }
+        return expression;
     };
 }
