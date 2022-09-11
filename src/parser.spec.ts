@@ -1,18 +1,26 @@
-import { expect, it } from 'vitest';
+import { assert, expect, it } from 'vitest';
 import { Lexer } from 'lexer';
 import { Parser } from 'parser';
 import {
+    Expression,
     ExpresstionStatement,
     Identifier,
     IntegerLiteral,
     LetStatement,
+    PrefixOperation,
     ReturnStatement,
 } from 'ast';
+import { tokens } from 'token';
 
 const checkParseErrors = (parser: Parser) => {
     if (parser.errors.length > 0) {
         throw new Error(parser.errors.join('\n'));
     }
+};
+
+const checkIntegerLiteral = (expression: Expression, expectedNum: number) => {
+    assert(expression instanceof IntegerLiteral);
+    expect(expression.value).toBe(expectedNum);
 };
 
 it.concurrent('let statements', () => {
@@ -30,11 +38,8 @@ it.concurrent('let statements', () => {
 
     for (const i of answers.keys()) {
         const statement = astRoot.statementArray[i];
-        if (statement instanceof LetStatement) {
-            expect(statement.name.token.literal).toBe(answers[i]);
-        } else {
-            throw new Error(`${statement} is not a let statement`);
-        }
+        assert(statement instanceof LetStatement);
+        expect(statement.name.token.literal).toBe(answers[i]);
     }
 });
 
@@ -53,9 +58,7 @@ it.concurrent('return statements', () => {
 
     for (const i of Array.from({ length: numStatements }).keys()) {
         const statement = astRoot.statementArray[i];
-        if (!(statement instanceof ReturnStatement)) {
-            throw new Error(`${statement} is not a return statement`);
-        }
+        assert(statement instanceof ReturnStatement);
     }
 });
 
@@ -71,9 +74,8 @@ it.concurrent('identifier expression', () => {
     expect(astRoot.statementArray.length).toBe(numStatement);
 
     const statement = astRoot.statementArray[0];
-    if (!(statement instanceof ExpresstionStatement)) throw new Error();
-    if (!(statement.expression instanceof Identifier)) throw new Error();
-
+    assert(statement instanceof ExpresstionStatement);
+    assert(statement.expression instanceof Identifier);
     expect(statement.expression.value).toBe('foobar');
 });
 
@@ -89,8 +91,48 @@ it.concurrent('integer literal expression', () => {
     expect(astRoot.statementArray.length).toBe(numStatement);
 
     const statement = astRoot.statementArray[0];
-    if (!(statement instanceof ExpresstionStatement)) throw new Error();
-    if (!(statement.expression instanceof IntegerLiteral)) throw new Error();
+    assert(statement instanceof ExpresstionStatement);
+    checkIntegerLiteral(statement.expression, 5);
+});
 
-    expect(statement.expression.value).toBe(5);
+it.concurrent('prefix operation expression', () => {
+    const input = `
+    !5;
+    -10;
+    !!5;
+    `;
+    const numStatement = 3;
+
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
+    const astRoot = parser.parseProgram();
+    checkParseErrors(parser);
+
+    expect(astRoot.statementArray.length).toBe(numStatement);
+
+    //\ !5
+    let statement = astRoot.statementArray[0];
+    assert(statement instanceof ExpresstionStatement);
+    assert(statement.expression instanceof PrefixOperation);
+    expect(statement.expression.operator).toBe(tokens.bang);
+    checkIntegerLiteral(statement.expression.right, 5);
+
+    // -10
+    statement = astRoot.statementArray[1];
+    assert(statement instanceof ExpresstionStatement);
+    assert(statement.expression instanceof PrefixOperation);
+    expect(statement.expression.operator).toBe(tokens.minus);
+    checkIntegerLiteral(statement.expression.right, 10);
+
+    //\ !!5
+    statement = astRoot.statementArray[2];
+    assert(statement instanceof ExpresstionStatement);
+    assert(statement.expression instanceof PrefixOperation);
+    expect(statement.expression.operator).toBe(tokens.bang);
+
+    const rightExpression = statement.expression.right;
+    assert(rightExpression instanceof PrefixOperation);
+    expect(rightExpression.operator).toBe(tokens.bang);
+
+    checkIntegerLiteral(rightExpression.right, 5);
 });

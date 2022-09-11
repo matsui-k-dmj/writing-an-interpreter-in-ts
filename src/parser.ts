@@ -5,6 +5,7 @@ import {
     Identifier,
     IntegerLiteral,
     LetStatement,
+    PrefixOperation,
     ReturnStatement,
     Statement,
 } from 'ast';
@@ -23,7 +24,7 @@ const precedences = [
     'lessGreater',
     'sum',
     'product',
-    'prefex',
+    'prefix',
     'call',
 ] as const;
 
@@ -46,6 +47,8 @@ export class Parser {
         this.prefixParseFunctions = new Map([
             [tokens.ident, this.parseIdentifier],
             [tokens.int, this.parseIntegerLiteral],
+            [tokens.bang, this.parsePrefixOperation],
+            [tokens.minus, this.parsePrefixOperation],
         ]);
     }
 
@@ -177,7 +180,12 @@ export class Parser {
         const prefixParse = this.prefixParseFunctions.get(
             this.getCurrentToken().type
         );
-        if (prefixParse == null) return null;
+        if (prefixParse == null) {
+            this.errors.push(
+                `No prefixParse function for ${this.getCurrentToken().type}`
+            );
+            return null;
+        }
 
         const leftExpression = prefixParse();
         if (leftExpression == null) return null;
@@ -206,6 +214,27 @@ export class Parser {
                 literal: this.currentToken.literal,
             },
             num
+        );
+    };
+
+    /** 前置演算子(!か-)からパース */
+    parsePrefixOperation = (): Expression | null => {
+        const prefixToken = this.currentToken;
+        if (
+            prefixToken.type !== tokens.bang &&
+            prefixToken.type !== tokens.minus
+        )
+            return null;
+
+        this.goNextToken();
+        const rightExpression = this.parseExpression(
+            precedences.indexOf('prefix')
+        );
+        if (rightExpression == null) return null;
+        return new PrefixOperation(
+            { type: prefixToken.type, literal: prefixToken.literal },
+            prefixToken.type,
+            rightExpression
         );
     };
 }

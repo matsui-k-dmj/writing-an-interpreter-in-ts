@@ -62,7 +62,7 @@ export class ExpresstionStatement implements Statement {
 }
 
 /**
- * 識別子 式
+ * 識別子
  * let 左辺の識別子は式ではないが、他の識別子は代入されてる値を生成する式なので、単純のためにどちらの場合も式で表す
  */
 export class Identifier implements Expression {
@@ -75,12 +75,28 @@ export class Identifier implements Expression {
 }
 
 /**
- * 整数リテラル 式
+ * 整数リテラル
  */
 export class IntegerLiteral implements Expression {
     constructor(
         public token: { type: typeof tokens.int; literal: string },
         public value: number
+    ) {}
+    nodeType = 'expression' as const;
+    tokenLiteral: () => string = () => this.token.literal;
+}
+
+/**
+ * 前置演算子
+ */
+export class PrefixOperation implements Expression {
+    constructor(
+        public token: {
+            type: typeof tokens.bang | typeof tokens.minus;
+            literal: string;
+        },
+        public operator: typeof tokens.bang | typeof tokens.minus,
+        public right: Expression
     ) {}
     nodeType = 'expression' as const;
     tokenLiteral: () => string = () => this.token.literal;
