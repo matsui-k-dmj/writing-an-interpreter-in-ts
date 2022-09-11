@@ -5,6 +5,7 @@ import {
     Expression,
     ExpresstionStatement,
     Identifier,
+    InfixOperation,
     IntegerLiteral,
     LetStatement,
     PrefixOperation,
@@ -135,4 +136,66 @@ it.concurrent('prefix operation expression', () => {
     expect(rightExpression.operator).toBe(tokens.bang);
 
     checkIntegerLiteral(rightExpression.right, 5);
+});
+
+it.concurrent('infix operation expression', () => {
+    const input = `
+    5 + 5;
+    5 - 5;
+    5 * 5;
+    5 / 5;
+    5 > 5;
+    5 < 5;
+    5 == 5;
+    5 != 5;
+    `;
+    const numStatement = 8;
+
+    const expectedOperators = [
+        tokens.plus,
+        tokens.minus,
+        tokens.asterisk,
+        tokens.slash,
+        tokens.greaterThan,
+        tokens.lessThan,
+        tokens.eq,
+        tokens.notEq,
+    ];
+
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
+    const astRoot = parser.parseProgram();
+    checkParseErrors(parser);
+
+    expect(astRoot.statementArray.length).toBe(numStatement);
+
+    for (const [i, statement] of astRoot.statementArray.entries()) {
+        assert(statement instanceof ExpresstionStatement);
+        assert(statement.expression instanceof InfixOperation);
+
+        expect(statement.expression.operator).toBe(expectedOperators[i]);
+        checkIntegerLiteral(statement.expression.left, 5);
+        checkIntegerLiteral(statement.expression.right, 5);
+    }
+});
+
+it.concurrent('precedence', () => {
+    const test = [
+        ['-a * b', '((-a) * b)'],
+        ['!-a', '(!(-a))'],
+        ['a + b + c', '((a + b) + c)'],
+        ['a + b * c', '(a + (b * c))'],
+        ['5 > 4 == 3 / 2', '((5 > 4) == (3 / 2))'],
+        ['5 > 4 != 1 - 3 / 2', '((5 > 4) != (1 - (3 / 2)))'],
+    ];
+    for (const [input, expected] of test) {
+        const lexer = new Lexer(input);
+        const parser = new Parser(lexer);
+        const astRoot = parser.parseProgram();
+        checkParseErrors(parser);
+        expect(astRoot.statementArray.length).toBe(1);
+        let statement = astRoot.statementArray[0];
+        assert(statement instanceof ExpresstionStatement);
+        expect(statement.expression.print()).toBe(expected);
+    }
 });

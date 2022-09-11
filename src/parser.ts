@@ -3,6 +3,7 @@ import {
     Expression,
     ExpresstionStatement,
     Identifier,
+    InfixOperation,
     IntegerLiteral,
     LetStatement,
     PrefixOperation,
@@ -14,11 +15,9 @@ import { Token, tokens, TokenType } from 'token';
 
 /** 前置構文解析関数 */
 type PrefixParse = () => Expression | null;
-/** 中置構文解析関数 */
-type InfixParse = (expression: Expression) => Expression;
 
 /** 演算子の優先順位。順番はindexOfで取る */
-const precedences = [
+const precedenceOrder = [
     'lowest',
     'equals',
     'lessGreater',
@@ -27,6 +26,21 @@ const precedences = [
     'prefix',
     'call',
 ] as const;
+
+const operationPrecedences = new Map<TokenType, number>([
+    [tokens.eq, precedenceOrder.indexOf('equals')],
+    [tokens.notEq, precedenceOrder.indexOf('equals')],
+    [tokens.lessThan, precedenceOrder.indexOf('lessGreater')],
+    [tokens.greaterThan, precedenceOrder.indexOf('lessGreater')],
+    [tokens.plus, precedenceOrder.indexOf('sum')],
+    [tokens.minus, precedenceOrder.indexOf('sum')],
+    [tokens.slash, precedenceOrder.indexOf('product')],
+    [tokens.asterisk, precedenceOrder.indexOf('product')],
+]);
+
+const getPrecedence = (type: TokenType): number => {
+    return operationPrecedences.get(type) ?? precedenceOrder.indexOf('lowest');
+};
 
 /** 構文解析マシーン */
 export class Parser {
@@ -37,7 +51,6 @@ export class Parser {
 
     /** 比較のためにどっちも使ってみる */
     prefixParseFunctions: Map<TokenType, PrefixParse>;
-    infixParseFunctions: Record<TokenType, InfixParse>;
 
     constructor(public lexer: Lexer) {
         // 二つ進めるとcurrentTokenとpeekTokenが読まれる
@@ -72,12 +85,17 @@ export class Parser {
             if (statement != null) {
                 astRoot.statementArray.push(statement);
             }
-            this.goNextToken();
+            // parseStatementでcurrentがsemicolonで終わるか、セミコロンが無い式の最後のトークンになってる
+            this.goNextToken(); // currentは次の文の先頭のトークン
         }
         return astRoot;
     };
 
-    /** 文の最初にあるトークンの場所から初めて文をパースする */
+    /**
+     * 文の最初にあるトークンの場所から初めて文をパースする
+     * 各パース関数が終わったときには currentがsemicolonになるようにしている。
+     * 例外的に式の最後のセミコロンがない場合は式の最後のトークンになってる
+     * */
     parseStatement = (): Statement | null => {
         switch (this.currentToken.type) {
             case tokens.let:
@@ -127,6 +145,7 @@ export class Parser {
         while (this.getCurrentToken().type !== tokens.semicolon) {
             this.goNextToken();
         }
+        // currentはsemicolon
 
         return new LetStatement(
             { type: tokens.let, literal: tokens.let },
@@ -134,6 +153,7 @@ export class Parser {
             {
                 nodeType: 'expression',
                 tokenLiteral: () => '',
+                print: () => '',
             }
         );
     };
@@ -148,6 +168,8 @@ export class Parser {
         while (this.getCurrentToken().type !== tokens.semicolon) {
             this.goNextToken();
         }
+        // currentはsemicolon
+
         return new ReturnStatement(
             {
                 type: tokens.return,
@@ -156,6 +178,7 @@ export class Parser {
             {
                 nodeType: 'expression',
                 tokenLiteral: () => '',
+                print: () => '',
             }
         );
     };
@@ -165,17 +188,24 @@ export class Parser {
      */
     parseExpressionStatement = (): ExpresstionStatement | null => {
         const currentToken = this.getCurrentToken();
-        const expression = this.parseExpression(precedences.indexOf('lowest'));
+        const expression = this.parseExpression(
+            precedenceOrder.indexOf('lowest')
+        );
         if (expression == null) return null;
 
         // 式の最後のセミコロンは無視する
+        // セミコロンがあったらcurrentはセミコロン
+        // なかったら式の最後のトークンになってる
         if (this.getPeekToken().type === tokens.semicolon) {
-            this.goNextToken();
+            this.goNextToken(); // currentはsemicolon
         }
         return new ExpresstionStatement(currentToken, expression);
     };
 
-    /** 現在のトークンに応じて式パース関数を使う */
+    /**
+     * 現在のトークンに応じて式パース関数を使う
+     * 演算子から呼ばれたときには currentが演算子の右側のトークン, precedenceはその演算子の優先順位
+     * */
     parseExpression = (precedence: number): Expression | null => {
         const prefixParse = this.prefixParseFunctions.get(
             this.getCurrentToken().type
@@ -187,10 +217,20 @@ export class Parser {
             return null;
         }
 
-        const leftExpression = prefixParse();
-        if (leftExpression == null) return null;
+        let expression = prefixParse();
+        if (expression == null) return null;
 
-        return leftExpression;
+        while (
+            this.getPeekToken().type !== tokens.semicolon &&
+            precedence < getPrecedence(this.getPeekToken().type)
+        ) {
+            // 次の中置演算子よりも優先順位が低い場合は自分(式)をその中置演算子に渡す
+            this.goNextToken(); // currentは次の中置演算子
+            expression = this.parseInfixExpression(expression);
+            if (expression == null) return expression;
+        }
+
+        return expression;
     };
 
     /** identトークンから識別子式のパース */
@@ -226,15 +266,32 @@ export class Parser {
         )
             return null;
 
-        this.goNextToken();
+        this.goNextToken(); // currentは 演算子の次のトークン
         const rightExpression = this.parseExpression(
-            precedences.indexOf('prefix')
+            precedenceOrder.indexOf('prefix')
         );
         if (rightExpression == null) return null;
         return new PrefixOperation(
             { type: prefixToken.type, literal: prefixToken.literal },
             prefixToken.type,
             rightExpression
+        );
+    };
+
+    /** 中置演算子(*など)からパース */
+    parseInfixExpression = (leftExpression: Expression): Expression | null => {
+        const currentToken = this.getCurrentToken();
+        const precedence = getPrecedence(currentToken.type);
+        this.goNextToken(); // currentは演算子の次のトークン
+        const rightExpression = this.parseExpression(precedence);
+
+        if (rightExpression == null) return null;
+
+        return new InfixOperation(
+            currentToken,
+            currentToken.literal,
+            rightExpression,
+            leftExpression
         );
     };
 }

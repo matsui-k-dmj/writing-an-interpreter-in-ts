@@ -13,6 +13,8 @@ export interface Statement extends Node {
 export interface Expression extends Node {
     /** statementとexpressionを分けるためのダミー */
     nodeType: 'expression';
+    /** デバッグ用に式をプリント e.g. '(a + (b * c))' */
+    print: () => string;
 }
 
 /**
@@ -72,11 +74,10 @@ export class Identifier implements Expression {
     ) {}
     nodeType = 'expression' as const;
     tokenLiteral: () => string = () => this.token.literal;
+    print: () => string = this.tokenLiteral;
 }
 
-/**
- * 整数リテラル
- */
+/** 整数リテラル */
 export class IntegerLiteral implements Expression {
     constructor(
         public token: { type: typeof tokens.int; literal: string },
@@ -84,11 +85,10 @@ export class IntegerLiteral implements Expression {
     ) {}
     nodeType = 'expression' as const;
     tokenLiteral: () => string = () => this.token.literal;
+    print: () => string = this.tokenLiteral;
 }
 
-/**
- * 前置演算子
- */
+/** 前置演算子 */
 export class PrefixOperation implements Expression {
     constructor(
         public token: {
@@ -100,4 +100,19 @@ export class PrefixOperation implements Expression {
     ) {}
     nodeType = 'expression' as const;
     tokenLiteral: () => string = () => this.token.literal;
+    print = () => `(${this.operator}${this.right.print()})`;
+}
+
+/** 中置演算子 */
+export class InfixOperation implements Expression {
+    constructor(
+        public token: Token,
+        public operator: string,
+        public right: Expression,
+        public left: Expression
+    ) {}
+    nodeType = 'expression' as const;
+    tokenLiteral: () => string = () => this.token.literal;
+    print = (): string =>
+        `(${this.left.print()} ${this.operator} ${this.right.print()})`;
 }
