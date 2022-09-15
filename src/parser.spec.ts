@@ -6,6 +6,7 @@ import {
     Expression,
     ExpresstionStatement,
     Identifier,
+    IfExpression,
     InfixOperation,
     IntegerLiteral,
     LetStatement,
@@ -255,4 +256,61 @@ it.concurrent('group is not closed', () => {
     const parser = new Parser(lexer);
     parser.parseProgram();
     expect(parser.errors[0]).toBe('no ) after (a + b)');
+});
+
+it.concurrent('if', () => {
+    const input = `
+        if (x < y) { x }
+    `;
+    const numStatement = 1;
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
+    const astRoot = parser.parseProgram();
+    checkParseErrors(parser);
+    expect(astRoot.statementArray.length).toBe(numStatement);
+
+    const statement = astRoot.statementArray[0];
+    assert(statement instanceof ExpresstionStatement);
+    assert(statement.expression instanceof IfExpression);
+    expect(statement.expression.conditionExpression.print()).toBe('(x < y)');
+    expect(
+        statement.expression.consequenceStatement.statementArray[0].tokenLiteral()
+    ).toBe('x');
+    expect(statement.expression.alternativeStatement).toBeNull();
+});
+
+it.concurrent('if else ', () => {
+    const input = `
+        if (x < y) { 
+            return x;
+        } else { 
+            y 
+        }
+    `;
+    const numStatement = 1;
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
+    const astRoot = parser.parseProgram();
+    checkParseErrors(parser);
+    expect(astRoot.statementArray.length).toBe(numStatement);
+
+    const statement = astRoot.statementArray[0];
+    assert(statement instanceof ExpresstionStatement);
+    assert(statement.expression instanceof IfExpression);
+    expect(statement.expression.conditionExpression.print()).toBe('(x < y)');
+    assert(
+        statement.expression.consequenceStatement.statementArray[0] instanceof
+            ReturnStatement
+    );
+    assert(statement.expression.alternativeStatement != null);
+    expect(
+        statement.expression.alternativeStatement.statementArray.length
+    ).toBe(1);
+    assert(
+        statement.expression.alternativeStatement.statementArray[0] instanceof
+            ExpresstionStatement
+    );
+    expect(
+        statement.expression.alternativeStatement.statementArray[0].expression.print()
+    ).toBe('y');
 });

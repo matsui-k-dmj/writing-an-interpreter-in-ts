@@ -3,6 +3,8 @@ import { Token, tokens } from 'token';
 export interface Node {
     /** テストとデバッグ用 */
     tokenLiteral: () => string;
+    /** デバッグ用に式をプリント e.g. '(a + (b * c))' */
+    print: () => string;
 }
 
 export interface Statement extends Node {
@@ -13,8 +15,6 @@ export interface Statement extends Node {
 export interface Expression extends Node {
     /** statementとexpressionを分けるためのダミー */
     nodeType: 'expression';
-    /** デバッグ用に式をプリント e.g. '(a + (b * c))' */
-    print: () => string;
 }
 
 /**
@@ -30,6 +30,13 @@ export class AstRoot implements Node {
             return '';
         }
     };
+    print = () => {
+        const prints: string[] = [];
+        for (const st of this.statementArray) {
+            prints.push(st.print());
+        }
+        return prints.join('\n');
+    };
 }
 
 /** let 文 */
@@ -42,7 +49,8 @@ export class LetStatement implements Statement {
         public value: Expression
     ) {}
     nodeType = 'statement' as const;
-    tokenLiteral: () => string = () => this.token.literal;
+    tokenLiteral = () => this.token.literal;
+    print = () => `let ${this.name.print()} = ${this.value.print()}`;
 }
 
 /** return 文 */
@@ -53,14 +61,31 @@ export class ReturnStatement implements Statement {
         public returnValue: Expression
     ) {}
     nodeType = 'statement' as const;
-    tokenLiteral: () => string = () => this.token.literal;
+    tokenLiteral = () => this.token.literal;
+    print = () => `return ${this.returnValue.print()}`;
 }
 
 /** 式文 */
 export class ExpresstionStatement implements Statement {
     constructor(public token: Token, public expression: Expression) {}
     nodeType = 'statement' as const;
-    tokenLiteral: () => string = () => this.token.literal;
+    tokenLiteral = () => this.token.literal;
+    print = () => this.expression.print();
+}
+
+/** ブロック文 if とか fn の中身*/
+export class BlockStatement implements Statement {
+    constructor(public token: Token, public statementArray: Statement[]) {}
+    nodeType = 'statement' as const;
+    tokenLiteral = () => this.token.literal;
+    print = () => {
+        const prints: string[] = ['{'];
+        for (const st of this.statementArray) {
+            prints.push(st.print());
+        }
+        prints.push('}');
+        return prints.join('\n');
+    };
 }
 
 /**
@@ -73,7 +98,7 @@ export class Identifier implements Expression {
         public value: string
     ) {}
     nodeType = 'expression' as const;
-    tokenLiteral: () => string = () => this.token.literal;
+    tokenLiteral = () => this.token.literal;
     print: () => string = this.tokenLiteral;
 }
 
@@ -84,7 +109,7 @@ export class IntegerLiteral implements Expression {
         public value: number
     ) {}
     nodeType = 'expression' as const;
-    tokenLiteral: () => string = () => this.token.literal;
+    tokenLiteral = () => this.token.literal;
     print: () => string = this.tokenLiteral;
 }
 
@@ -92,7 +117,7 @@ export class IntegerLiteral implements Expression {
 export class BooleanLiteral implements Expression {
     constructor(public token: Token, public value: boolean) {}
     nodeType = 'expression' as const;
-    tokenLiteral: () => string = () => this.token.literal;
+    tokenLiteral = () => this.token.literal;
     print: () => string = this.tokenLiteral;
 }
 
@@ -107,7 +132,7 @@ export class PrefixOperation implements Expression {
         public right: Expression
     ) {}
     nodeType = 'expression' as const;
-    tokenLiteral: () => string = () => this.token.literal;
+    tokenLiteral = () => this.token.literal;
     print = () => `(${this.operator}${this.right.print()})`;
 }
 
@@ -120,7 +145,25 @@ export class InfixOperation implements Expression {
         public left: Expression
     ) {}
     nodeType = 'expression' as const;
-    tokenLiteral: () => string = () => this.token.literal;
+    tokenLiteral = () => this.token.literal;
     print = (): string =>
         `(${this.left.print()} ${this.operator} ${this.right.print()})`;
+}
+
+/** if式 */
+export class IfExpression implements Expression {
+    constructor(
+        public token: Token,
+        public conditionExpression: Expression,
+        public consequenceStatement: BlockStatement,
+        public alternativeStatement: BlockStatement | null
+    ) {}
+    nodeType = 'expression' as const;
+    tokenLiteral = () => this.token.literal;
+    print = () =>
+        `if ${this.conditionExpression.print()} ${this.consequenceStatement.print()} ${
+            this.alternativeStatement != null
+                ? `else ${this.alternativeStatement.print()}`
+                : ''
+        }`;
 }

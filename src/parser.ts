@@ -1,9 +1,11 @@
 import {
     AstRoot,
+    BlockStatement,
     BooleanLiteral,
     Expression,
     ExpresstionStatement,
     Identifier,
+    IfExpression,
     InfixOperation,
     IntegerLiteral,
     LetStatement,
@@ -17,30 +19,36 @@ import { Token, tokens, TokenType } from 'token';
 /** 前置構文解析関数 */
 type PrefixParse = () => Expression | null;
 
-/** 演算子の優先順位。順番はindexOfで取る */
-const precedenceOrder = [
-    'lowest',
-    'equals',
-    'lessGreater',
-    'sum',
-    'product',
-    'prefix',
-    'call',
-] as const;
+/**
+ *  演算子の優先順位
+ * enumは一般的には推奨されてないけど、今は順番が必要だからUnion型ではないし、
+ * Record<string, number> だと 新しい値を挿入しにくいので、
+ * enumを使う
+ */
+enum PrecedenceOrder {
+    Lowest,
+    Equals,
+    LessGreater,
+    Sum,
+    Product,
+    Prefix,
+    Call,
+}
 
+/** 中置演算子の優先順位 */
 const operationPrecedences = new Map<TokenType, number>([
-    [tokens.eq, precedenceOrder.indexOf('equals')],
-    [tokens.notEq, precedenceOrder.indexOf('equals')],
-    [tokens.lessThan, precedenceOrder.indexOf('lessGreater')],
-    [tokens.greaterThan, precedenceOrder.indexOf('lessGreater')],
-    [tokens.plus, precedenceOrder.indexOf('sum')],
-    [tokens.minus, precedenceOrder.indexOf('sum')],
-    [tokens.slash, precedenceOrder.indexOf('product')],
-    [tokens.asterisk, precedenceOrder.indexOf('product')],
+    [tokens.eq, PrecedenceOrder.Equals],
+    [tokens.notEq, PrecedenceOrder.Equals],
+    [tokens.lessThan, PrecedenceOrder.LessGreater],
+    [tokens.greaterThan, PrecedenceOrder.LessGreater],
+    [tokens.plus, PrecedenceOrder.Sum],
+    [tokens.minus, PrecedenceOrder.Sum],
+    [tokens.slash, PrecedenceOrder.Product],
+    [tokens.asterisk, PrecedenceOrder.Product],
 ]);
 
 const getPrecedence = (type: TokenType): number => {
-    return operationPrecedences.get(type) ?? precedenceOrder.indexOf('lowest');
+    return operationPrecedences.get(type) ?? PrecedenceOrder.Lowest;
 };
 
 /** 構文解析マシーン */
@@ -66,6 +74,7 @@ export class Parser {
             [tokens.true, this.parseBooleanLiteral],
             [tokens.false, this.parseBooleanLiteral],
             [tokens.leftParen, this.parseGroupedExpression],
+            [tokens.if, this.parseIfExpression],
         ]);
     }
 
@@ -81,9 +90,17 @@ export class Parser {
         this.peekToken = this.lexer.goNextToken();
     };
 
+    /** 無限ループになりそうなとこに置いとく */
+    preventInfiniteLoop = () => {
+        if (this.currentToken.type === tokens.EOF) {
+            throw Error('Unexpected EOF, possibly forgeting ; after statement');
+        }
+    };
+
     /** プログラム全体をパース */
     parseProgram = (): AstRoot => {
         const astRoot = new AstRoot([]);
+
         while (this.currentToken.type !== tokens.EOF) {
             const statement = this.parseStatement();
             if (statement != null) {
@@ -147,6 +164,7 @@ export class Parser {
 
         // TODO: parse expression
         while (this.getCurrentToken().type !== tokens.semicolon) {
+            this.preventInfiniteLoop();
             this.goNextToken();
         }
         // currentはsemicolon
@@ -170,6 +188,7 @@ export class Parser {
         this.goNextToken();
         // TODO: parse expression
         while (this.getCurrentToken().type !== tokens.semicolon) {
+            this.preventInfiniteLoop();
             this.goNextToken();
         }
         // currentはsemicolon
@@ -192,9 +211,7 @@ export class Parser {
      */
     parseExpressionStatement = (): ExpresstionStatement | null => {
         const currentToken = this.getCurrentToken();
-        const expression = this.parseExpression(
-            precedenceOrder.indexOf('lowest')
-        );
+        const expression = this.parseExpression(PrecedenceOrder.Lowest);
         if (expression == null) return null;
 
         // 式の最後のセミコロンは無視する
@@ -207,8 +224,29 @@ export class Parser {
     };
 
     /**
+     * ifとfnの中の文の先頭からパース
+     * current が } で終わる
+     */
+    parseBlockStatement = (): BlockStatement | null => {
+        const firstToken = this.currentToken;
+        const statementArray: Statement[] = [];
+        while (this.currentToken.type !== tokens.rightBrace) {
+            this.preventInfiniteLoop();
+
+            const statement = this.parseStatement();
+            if (statement != null) {
+                statementArray.push(statement);
+            }
+            // parseStatementでcurrentがsemicolonで終わるか、セミコロンが無い式の最後のトークンになってる
+            this.goNextToken(); // currentは次の文の先頭のトークン
+        }
+        return new BlockStatement(firstToken, statementArray);
+    };
+
+    /**
      * 現在のトークンに応じて式パース関数を使う
      * 演算子から呼ばれたときには currentが演算子の右側のトークン, precedenceはその演算子の優先順位
+     * セミコロンや ) を含まない式の最後のトークンで終わる
      * */
     parseExpression = (precedence: number): Expression | null => {
         const prefixParse = this.prefixParseFunctions.get(
@@ -224,10 +262,14 @@ export class Parser {
         let expression = prefixParse();
         if (expression == null) return null;
 
+        // 次がセミコロンか自分以下の優先順位のトークンに当たると終わる
+        // 演算子以外の ) などが次でもLowestなので終わる
         while (
             this.getPeekToken().type !== tokens.semicolon &&
             precedence < getPrecedence(this.getPeekToken().type)
         ) {
+            this.preventInfiniteLoop();
+
             // 次の中置演算子よりも優先順位が低い場合は自分(式)をその中置演算子に渡す
             this.goNextToken(); // currentは次の中置演算子
             expression = this.parseInfixExpression(expression);
@@ -279,9 +321,7 @@ export class Parser {
             return null;
 
         this.goNextToken(); // currentは 演算子の次のトークン
-        const rightExpression = this.parseExpression(
-            precedenceOrder.indexOf('prefix')
-        );
+        const rightExpression = this.parseExpression(PrecedenceOrder.Prefix);
         if (rightExpression == null) return null;
         return new PrefixOperation(
             { type: prefixToken.type, literal: prefixToken.literal },
@@ -307,12 +347,12 @@ export class Parser {
         );
     };
 
-    /** ( から始まって ) までパースする */
+    /** ( から始まって ) までパースする
+     * currentは ) で終わる
+     */
     parseGroupedExpression = (): Expression | null => {
         this.goNextToken(); // currentは ( の次のトークン
-        const expression = this.parseExpression(
-            precedenceOrder.indexOf('lowest')
-        );
+        const expression = this.parseExpression(PrecedenceOrder.Lowest);
         // ここまででcurrentは式の最後のトークンになってるから、次には ) があるべき。無いと()が閉じられてない。
         if (this.getPeekToken().type === tokens.rightParen) {
             this.goNextToken(); // currentはrigthParen
@@ -320,6 +360,49 @@ export class Parser {
             this.errors.push(`no ) after ${expression?.print()}`);
             return null;
         }
+
         return expression;
+    };
+
+    /** if トークンから始まってパース
+     * current が } で終わる
+     */
+    parseIfExpression = (): Expression | null => {
+        const firstToken = this.currentToken;
+
+        if (!this.expectPeekGoNext(tokens.leftParen)) return null; // if -> (
+
+        // 条件式
+        const conditionExpression = this.parseGroupedExpression(); // -> )
+        if (conditionExpression == null) return null;
+
+        if (!this.expectPeekGoNext(tokens.leftBrace)) return null; // ) -> {
+
+        this.goNextToken(); // { -> ブロック文の最初
+
+        // trueのブロック文
+        const consequenceStatement = this.parseBlockStatement(); // -> }
+        if (consequenceStatement == null) return null;
+
+        let alternativeStatement = null;
+        // elseがあればparse
+        if (this.peekToken.type === tokens.else) {
+            this.goNextToken(); // } -> else
+
+            if (!this.expectPeekGoNext(tokens.leftBrace)) return null; // else -> {
+
+            this.goNextToken(); // { -> ブロック文の最初
+
+            // trueのブロック文
+            alternativeStatement = this.parseBlockStatement(); // -> }
+            if (alternativeStatement == null) return null;
+        }
+
+        return new IfExpression(
+            firstToken,
+            conditionExpression,
+            consequenceStatement,
+            alternativeStatement
+        );
     };
 }
