@@ -184,3 +184,17 @@ export class FunctionLiteral implements Expression {
     ) ${this.body.print()}
     `;
 }
+
+export class CallExpressioon implements Expression {
+    constructor(
+        public token: Token,
+        public functionExpression: Identifier | FunctionLiteral,
+        public parameterArray: Expression[]
+    ) {}
+    nodeType = 'expression' as const;
+    tokenLiteral = () => this.token.literal;
+    print = () =>
+        `${this.functionExpression.print()}(${this.parameterArray
+            .map((expression) => expression.print())
+            .join(', ')})`;
+}

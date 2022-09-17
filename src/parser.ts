@@ -2,6 +2,7 @@ import {
     AstRoot,
     BlockStatement,
     BooleanLiteral,
+    CallExpressioon,
     Expression,
     ExpresstionStatement,
     FunctionLiteral,
@@ -46,6 +47,7 @@ const operationPrecedences = new Map<TokenType, number>([
     [tokens.minus, PrecedenceOrder.Sum],
     [tokens.slash, PrecedenceOrder.Product],
     [tokens.asterisk, PrecedenceOrder.Product],
+    [tokens.leftParen, PrecedenceOrder.Call],
 ]);
 
 const getPrecedence = (type: TokenType): number => {
@@ -164,21 +166,17 @@ export class Parser {
         // ident -> assign
         if (!this.expectPeekGoNext(tokens.assign)) return null;
 
-        // TODO: parse expression
-        while (this.getCurrentToken().type !== tokens.semicolon) {
-            this.preventInfiniteLoop();
-            this.goNextToken();
-        }
+        this.goNextToken();
+        const value = this.parseExpression(PrecedenceOrder.Lowest);
+        if (value == null) return null;
+
+        if (!this.expectPeekGoNext(tokens.semicolon)) return null;
         // currentはsemicolon
 
         return new LetStatement(
             { type: tokens.let, literal: tokens.let },
             ident,
-            {
-                nodeType: 'expression',
-                tokenLiteral: () => '',
-                print: () => '',
-            }
+            value
         );
     };
 
@@ -188,23 +186,17 @@ export class Parser {
      */
     parseReturnStatement = (): ReturnStatement | null => {
         this.goNextToken();
-        // TODO: parse expression
-        while (this.getCurrentToken().type !== tokens.semicolon) {
-            this.preventInfiniteLoop();
-            this.goNextToken();
-        }
-        // currentはsemicolon
+        const returnValue = this.parseExpression(PrecedenceOrder.Lowest);
+        if (returnValue == null) return null;
+
+        if (!this.expectPeekGoNext(tokens.semicolon)) return null;
 
         return new ReturnStatement(
             {
                 type: tokens.return,
                 literal: tokens.return,
             },
-            {
-                nodeType: 'expression',
-                tokenLiteral: () => '',
-                print: () => '',
-            }
+            returnValue
         );
     };
 
@@ -274,7 +266,7 @@ export class Parser {
 
             // 次の中置演算子よりも優先順位が低い場合は自分(式)をその中置演算子に渡す
             this.goNextToken(); // currentは次の中置演算子
-            expression = this.parseInfixExpression(expression);
+            expression = this.parseInfixOperation(expression);
             if (expression == null) return expression;
         }
 
@@ -333,7 +325,11 @@ export class Parser {
     };
 
     /** 中置演算子(*など)からパース */
-    parseInfixExpression = (leftExpression: Expression): Expression | null => {
+    parseInfixOperation = (leftExpression: Expression): Expression | null => {
+        if (this.currentToken.type === tokens.leftParen) {
+            return this.parseCallExpression(leftExpression);
+        }
+
         const currentToken = this.getCurrentToken();
         const precedence = getPrecedence(currentToken.type);
         this.goNextToken(); // currentは演算子の次のトークン
@@ -347,6 +343,44 @@ export class Parser {
             rightExpression,
             leftExpression
         );
+    };
+
+    /**
+     * 関数呼び出しのパース
+     * 中置演算子 としての ( から始まる
+     * ) で 終わる
+     * */
+    parseCallExpression = (leftExpression: Expression): Expression | null => {
+        const firstToken = this.currentToken;
+        if (
+            !(
+                leftExpression instanceof Identifier ||
+                leftExpression instanceof FunctionLiteral
+            )
+        ) {
+            this.errors.push(`parseCallExpression: 
+                ${leftExpression}
+                is not Identifier or FunctionLiteral`);
+            return null;
+        }
+
+        this.goNextToken(); // ( -> 最初の引数 | )
+
+        const parameterArray = [];
+        while (this.currentToken.type !== tokens.rightParen) {
+            const expression = this.parseExpression(PrecedenceOrder.Lowest);
+            if (expression == null) return null;
+
+            parameterArray.push(expression);
+
+            this.goNextToken(); // expression -> , | )
+
+            if (this.currentToken.type === tokens.comma) {
+                this.goNextToken(); // , -> expression
+            }
+        } // ) で終わる
+
+        return new CallExpressioon(firstToken, leftExpression, parameterArray);
     };
 
     /** ( から始まって ) までパースする

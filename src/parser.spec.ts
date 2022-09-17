@@ -4,6 +4,7 @@ import { Parser } from 'parser';
 import {
     BlockStatement,
     BooleanLiteral,
+    CallExpressioon,
     Expression,
     ExpresstionStatement,
     FunctionLiteral,
@@ -37,9 +38,10 @@ it.concurrent('let statements', () => {
     const input = `
     let x = 5;
     let y = 10;
-    let foobar = 838383;
+    let foobar = 1999;
     `;
     const answers = ['x', 'y', 'foobar'] as const;
+    const values = [5, 10, 1999];
 
     const lexer = new Lexer(input);
     const parser = new Parser(lexer);
@@ -50,6 +52,7 @@ it.concurrent('let statements', () => {
         const statement = astRoot.statementArray[i];
         assert(statement instanceof LetStatement);
         expect(statement.name.token.literal).toBe(answers[i]);
+        checkIntegerLiteral(statement.value, values[i]);
     }
 });
 
@@ -60,6 +63,7 @@ it.concurrent('return statements', () => {
     return 1999;
     `;
     const numStatements = 3;
+    const returnValues = [5, 10, 1999];
 
     const lexer = new Lexer(input);
     const parser = new Parser(lexer);
@@ -69,6 +73,8 @@ it.concurrent('return statements', () => {
     for (const i of Array.from({ length: numStatements }).keys()) {
         const statement = astRoot.statementArray[i];
         assert(statement instanceof ReturnStatement);
+
+        checkIntegerLiteral(statement.returnValue, returnValues[i]);
     }
 });
 
@@ -252,6 +258,26 @@ it.concurrent('precedence groups', () => {
     }
 });
 
+it.concurrent('precedence calls', () => {
+    const test = [
+        ['a + add(b * c) + d', '((a + add((b * c))) + d)'],
+        [
+            'add(a, b, 1, 2 * 3, 4 + 5, add(6, 1 + 7 * 8))',
+            'add(a, b, 1, (2 * 3), (4 + 5), add(6, (1 + (7 * 8))))',
+        ],
+    ];
+    for (const [input, expected] of test) {
+        const lexer = new Lexer(input);
+        const parser = new Parser(lexer);
+        const astRoot = parser.parseProgram();
+        checkParseErrors(parser);
+        expect(astRoot.statementArray.length).toBe(1);
+        let statement = astRoot.statementArray[0];
+        assert(statement instanceof ExpresstionStatement);
+        expect(statement.expression.print()).toBe(expected);
+    }
+});
+
 it.concurrent('group is not closed', () => {
     const input = 'c + (a + b';
     const lexer = new Lexer(input);
@@ -359,4 +385,20 @@ it.concurrent('empty function', () => {
 
     assert(statement.expression.body instanceof BlockStatement);
     expect(statement.expression.body.statementArray.length).toBe(0);
+});
+
+it.concurrent('call expression', () => {
+    const input = `
+        add(x, y)
+    `;
+    const numStatement = 1;
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
+    const astRoot = parser.parseProgram();
+    checkParseErrors(parser);
+    expect(astRoot.statementArray.length).toBe(numStatement);
+
+    const statement = astRoot.statementArray[0];
+    assert(statement instanceof ExpresstionStatement);
+    assert(statement.expression instanceof CallExpressioon);
 });
