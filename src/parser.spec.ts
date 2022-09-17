@@ -2,9 +2,11 @@ import { assert, expect, it } from 'vitest';
 import { Lexer } from 'lexer';
 import { Parser } from 'parser';
 import {
+    BlockStatement,
     BooleanLiteral,
     Expression,
     ExpresstionStatement,
+    FunctionLiteral,
     Identifier,
     IfExpression,
     InfixOperation,
@@ -313,4 +315,48 @@ it.concurrent('if else ', () => {
     expect(
         statement.expression.alternativeStatement.statementArray[0].expression.print()
     ).toBe('y');
+});
+
+it.concurrent('function literal', () => {
+    const input = `
+        fn (x, y) {x + y;}
+    `;
+    const numStatement = 1;
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
+    const astRoot = parser.parseProgram();
+    checkParseErrors(parser);
+    expect(astRoot.statementArray.length).toBe(numStatement);
+
+    const statement = astRoot.statementArray[0];
+    assert(statement instanceof ExpresstionStatement);
+    assert(statement.expression instanceof FunctionLiteral);
+
+    expect(statement.expression.parameterArray.length).toBe(2);
+    expect(statement.expression.parameterArray[0].print()).toBe('x');
+    expect(statement.expression.parameterArray[1].print()).toBe('y');
+
+    assert(statement.expression.body instanceof BlockStatement);
+    expect(statement.expression.body.statementArray.length).toBe(1);
+    expect(statement.expression.body.statementArray[0].print()).toBe('(x + y)');
+});
+
+it.concurrent('empty function', () => {
+    const input = `
+        fn () {}
+    `;
+    const numStatement = 1;
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
+    const astRoot = parser.parseProgram();
+    checkParseErrors(parser);
+    expect(astRoot.statementArray.length).toBe(numStatement);
+
+    const statement = astRoot.statementArray[0];
+    assert(statement instanceof ExpresstionStatement);
+    assert(statement.expression instanceof FunctionLiteral);
+    expect(statement.expression.parameterArray.length).toBe(0);
+
+    assert(statement.expression.body instanceof BlockStatement);
+    expect(statement.expression.body.statementArray.length).toBe(0);
 });

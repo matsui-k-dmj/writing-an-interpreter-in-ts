@@ -4,6 +4,7 @@ import {
     BooleanLiteral,
     Expression,
     ExpresstionStatement,
+    FunctionLiteral,
     Identifier,
     IfExpression,
     InfixOperation,
@@ -75,6 +76,7 @@ export class Parser {
             [tokens.false, this.parseBooleanLiteral],
             [tokens.leftParen, this.parseGroupedExpression],
             [tokens.if, this.parseIfExpression],
+            [tokens.function, this.parseFunctionLiteral],
         ]);
     }
 
@@ -280,7 +282,7 @@ export class Parser {
     };
 
     /** identトークンから識別子式のパース */
-    parseIdentifier = (): Expression => {
+    parseIdentifier = (): Identifier => {
         return new Identifier(
             { type: 'ident', literal: this.currentToken.literal },
             this.currentToken.literal
@@ -404,5 +406,31 @@ export class Parser {
             consequenceStatement,
             alternativeStatement
         );
+    };
+
+    /** fnから関数リテラルをパース
+     * currentが } で終わる
+     */
+    parseFunctionLiteral = (): Expression | null => {
+        const firstToken = this.currentToken;
+        if (!this.expectPeekGoNext(tokens.leftParen)) return null; // fn -> (
+
+        this.goNextToken(); // ( - > ident | )
+        const parameterArray: Identifier[] = [];
+        while (this.currentToken.type !== tokens.rightParen) {
+            const ident = this.parseIdentifier();
+            if (ident == null) return null;
+            parameterArray.push(ident);
+            this.goNextToken(); // ident -> , | )
+            if (this.currentToken.type === tokens.comma) {
+                this.goNextToken(); // , -> ident
+            }
+        } // current ) で終わる
+
+        if (!this.expectPeekGoNext(tokens.leftBrace)) return null; // ) -> {
+        this.goNextToken(); // { -> ブロック文の最初
+        const bodyStatement = this.parseBlockStatement();
+        if (bodyStatement == null) return null;
+        return new FunctionLiteral(firstToken, parameterArray, bodyStatement);
     };
 }

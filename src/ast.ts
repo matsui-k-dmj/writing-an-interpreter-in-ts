@@ -167,3 +167,20 @@ export class IfExpression implements Expression {
                 : ''
         }`;
 }
+
+/** 関数リテラル */
+export class FunctionLiteral implements Expression {
+    constructor(
+        public token: Token,
+        public parameterArray: Identifier[],
+        public body: BlockStatement
+    ) {}
+    nodeType = 'expression' as const;
+    tokenLiteral = () => this.token.literal;
+    print = () => `fn (
+        ${this.parameterArray
+            .map((expression) => expression.print())
+            .join('\n')}
+    ) ${this.body.print()}
+    `;
+}
