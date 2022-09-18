@@ -177,12 +177,10 @@ export class FunctionLiteral implements Expression {
     ) {}
     nodeType = 'expression' as const;
     tokenLiteral = () => this.token.literal;
-    print = () => `fn (
-        ${this.parameterArray
+    print = () =>
+        `fn(${this.parameterArray
             .map((expression) => expression.print())
-            .join('\n')}
-    ) ${this.body.print()}
-    `;
+            .join(', ')}) ${this.body.print()}`;
 }
 
 export class CallExpressioon implements Expression {

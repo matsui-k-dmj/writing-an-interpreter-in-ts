@@ -1,6 +1,6 @@
 import { Lexer } from 'lexer';
+import { Parser } from 'parser';
 import readline from 'readline';
-import { tokens } from 'token';
 
 /**
  * 標準入力から一行取得する
@@ -27,13 +27,11 @@ const start = async () => {
     while (true) {
         const text = await question(prompt);
         const lexer = new Lexer(text);
-        while (true) {
-            const tok = lexer.goNextToken();
-            console.log(tok);
-            if (tok.type === tokens.EOF) {
-                break;
-            }
-        }
+        const parser = new Parser(lexer);
+        const astRoot = parser.parseProgram();
+
+        console.log(astRoot.print());
+        console.log(parser.errors);
     }
 };
 
