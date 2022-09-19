@@ -1,3 +1,4 @@
+import { evalMonkey } from 'evaluator';
 import { Lexer } from 'lexer';
 import { Parser } from 'parser';
 import readline from 'readline';
@@ -29,9 +30,16 @@ const start = async () => {
         const lexer = new Lexer(text);
         const parser = new Parser(lexer);
         const astRoot = parser.parseProgram();
+        const result = evalMonkey(astRoot);
+        if (result == null) {
+            console.log('result is null');
+        } else {
+            console.log(result.inspect());
+        }
 
-        console.log(astRoot.print());
-        console.log(parser.errors);
+        if (parser.errors.length > 0) {
+            console.log(parser.errors);
+        }
     }
 };
 
