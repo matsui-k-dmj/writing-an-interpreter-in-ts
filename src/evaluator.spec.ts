@@ -3,7 +3,7 @@ import { Lexer } from 'lexer';
 import { Parser } from 'parser';
 import { checkParseErrors } from 'parser.spec';
 import { evalMonkey } from 'evaluator';
-import { IntegerMonkey, Thingy } from 'object';
+import { BooleanMonkey, IntegerMonkey, Thingy } from 'object';
 
 const checkEval = (input: string, numStatement: number) => {
     const lexer = new Lexer(input);
@@ -21,14 +21,38 @@ const checkInteger = (result: Thingy, answer: number) => {
     expect(result.value).toBe(answer);
 };
 
-it.concurrent('let statements', () => {
+const checkBoolean = (result: Thingy, answer: boolean) => {
+    assert(result instanceof BooleanMonkey);
+    expect(result.value).toBe(answer);
+};
+
+it.concurrent('integer', () => {
     const tests = [
         ['10', 10],
         ['5', 5],
+        ['-5', -5],
     ] as const;
 
     for (const [input, answer] of tests) {
         const result = checkEval(input, 1);
         checkInteger(result, answer);
+    }
+});
+
+it.concurrent('boolean', () => {
+    const tests = [
+        ['true', true],
+        ['false', false],
+        ['!true', false],
+        ['!false', true],
+        ['!!false', false],
+        ['!!true', true],
+        ['!5', true],
+        ['!-5', true],
+    ] as const;
+
+    for (const [input, answer] of tests) {
+        const result = checkEval(input, 1);
+        checkBoolean(result, answer);
     }
 });
