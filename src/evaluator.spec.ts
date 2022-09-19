@@ -31,6 +31,13 @@ it.concurrent('integer', () => {
         ['10', 10],
         ['5', 5],
         ['-5', -5],
+        ['5 + 5', 10],
+        ['5 - 5', 0],
+        ['5 * 5', 25],
+        ['5 / 5', 1],
+        ['-5 + 5', 0],
+        ['5 - 5 * 5', -20],
+        ['(5 - 5) * 5', 0],
     ] as const;
 
     for (const [input, answer] of tests) {
@@ -49,6 +56,17 @@ it.concurrent('boolean', () => {
         ['!!true', true],
         ['!5', true],
         ['!-5', true],
+        ['5 < 10', true],
+        ['5 > 10', false],
+        ['5 == 10', false],
+        ['5 != 10', true],
+        ['5 != 5', false],
+        ['true == true', true],
+        ['true != true', false],
+        ['true == false', false],
+        ['true != false', true],
+        ['(1 + 6) == 7', true],
+        ['(1 > 3) == (2 > 5)', true],
     ] as const;
 
     for (const [input, answer] of tests) {

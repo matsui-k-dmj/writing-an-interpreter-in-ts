@@ -139,7 +139,7 @@ export class Lexer {
                     tok = { type: tokens.int, literal: this.readInteger() };
                     return tok;
                 } else {
-                    tok = { type: tokens.ILLEGAL, literal: '' };
+                    tok = { type: tokens.ILLEGAL, literal: this.ch };
                 }
         }
         this.readChar();

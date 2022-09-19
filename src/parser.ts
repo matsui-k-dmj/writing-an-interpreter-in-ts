@@ -248,7 +248,9 @@ export class Parser {
         );
         if (prefixParse == null) {
             this.errors.push(
-                `No prefixParse function for ${this.getCurrentToken().type}`
+                `No prefixParse function for ${this.getCurrentToken().type}: ${
+                    this.getCurrentToken().literal
+                }`
             );
             return null;
         }
