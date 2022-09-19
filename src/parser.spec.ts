@@ -18,7 +18,7 @@ import {
 } from 'ast';
 import { tokens } from 'token';
 
-const checkParseErrors = (parser: Parser) => {
+export const checkParseErrors = (parser: Parser) => {
     if (parser.errors.length > 0) {
         throw new Error(parser.errors.join('\n'));
     }
