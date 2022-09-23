@@ -3,7 +3,13 @@ import { Lexer } from 'lexer';
 import { Parser } from 'parser';
 import { checkParseErrors } from 'parser.spec';
 import { evalNode } from 'evaluator';
-import { BooleanThingy, IntegerThingy, NullThingy, Thingy } from 'object';
+import {
+    BooleanThingy,
+    Environment,
+    IntegerThingy,
+    NullThingy,
+    Thingy,
+} from 'object';
 
 const checkEval = (input: string, numStatement: number) => {
     const lexer = new Lexer(input);
@@ -11,7 +17,9 @@ const checkEval = (input: string, numStatement: number) => {
     const astRoot = parser.parseProgram();
     checkParseErrors(parser);
     expect(astRoot.statementArray.length).toBe(numStatement);
-    const result = evalNode(astRoot);
+
+    const env = new Environment();
+    const result = evalNode(astRoot, env);
     assert(result != null);
     return result;
 };
@@ -112,6 +120,20 @@ it.concurrent('return', () => {
             1,
             5,
         ],
+    ] as const;
+
+    for (const [input, numStatement, answer] of tests) {
+        const result = checkEval(input, numStatement);
+        checkInteger(result, answer);
+    }
+});
+
+it.concurrent('let', () => {
+    const tests = [
+        ['let a = 5; a', 2, 5],
+        ['let a = 5; 5 * a', 2, 25],
+        ['let a = 5; let b = a; b', 3, 5],
+        ['let a = 5; let b = a; a * b', 3, 25],
     ] as const;
 
     for (const [input, numStatement, answer] of tests) {

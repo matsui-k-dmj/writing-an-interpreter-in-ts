@@ -34,3 +34,11 @@ export class ReturnValueThingy implements Thingy {
     type = thingyTypes.returnValue;
     inspect = () => this.value.inspect();
 }
+
+export class Environment {
+    store = new Map<string, Thingy>();
+    get = (key: string) => this.store.get(key);
+    set = (key: string, value: Thingy) => {
+        this.store.set(key, value);
+    };
+}

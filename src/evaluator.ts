@@ -3,9 +3,11 @@ import {
     BlockStatement,
     BooleanLiteral,
     ExpresstionStatement,
+    Identifier,
     IfExpression,
     InfixOperation,
     IntegerLiteral,
+    LetStatement,
     Node,
     PrefixOperation,
     ReturnStatement,
@@ -13,6 +15,7 @@ import {
 } from 'ast';
 import {
     BooleanThingy,
+    Environment,
     IntegerThingy,
     NullThingy,
     ReturnValueThingy,
@@ -24,33 +27,38 @@ const TRUE = new BooleanThingy(true);
 const FALSE = new BooleanThingy(false);
 const NULL = new NullThingy();
 
-export const evalNode = (node: Node): Thingy => {
+export const evalNode = (node: Node, env: Environment): Thingy => {
     if (node instanceof AstRoot) {
-        return evalAstRoot(node.statementArray);
+        return evalAstRoot(node.statementArray, env);
     } else if (node instanceof BlockStatement) {
-        return evalBlockStatements(node.statementArray);
+        return evalBlockStatements(node.statementArray, env);
     } else if (node instanceof ExpresstionStatement) {
-        return evalNode(node.expression);
+        return evalNode(node.expression, env);
+    } else if (node instanceof LetStatement) {
+        const value = evalNode(node.value, env);
+        env.set(node.name.value, value);
     } else if (node instanceof ReturnStatement) {
-        return new ReturnValueThingy(evalNode(node.returnValue));
+        return new ReturnValueThingy(evalNode(node.returnValue, env));
     } else if (node instanceof IntegerLiteral) {
         return new IntegerThingy(node.value);
     } else if (node instanceof BooleanLiteral) {
         return node.value ? TRUE : FALSE;
     } else if (node instanceof PrefixOperation) {
-        return evalPrefixOperation(node);
+        return evalPrefixOperation(node, env);
     } else if (node instanceof InfixOperation) {
-        return evalInfixOperation(node);
+        return evalInfixOperation(node, env);
     } else if (node instanceof IfExpression) {
-        return evalIfExpression(node);
+        return evalIfExpression(node, env);
+    } else if (node instanceof Identifier) {
+        return evalIdentifier(node, env);
     }
     return NULL;
 };
 
-const evalAstRoot = (statementArray: Statement[]): Thingy => {
+const evalAstRoot = (statementArray: Statement[], env: Environment): Thingy => {
     let result: Thingy = new NullThingy();
     for (const st of statementArray) {
-        result = evalNode(st);
+        result = evalNode(st, env);
         if (result instanceof ReturnValueThingy) {
             return result.value; // unwrap return value
         }
@@ -58,10 +66,13 @@ const evalAstRoot = (statementArray: Statement[]): Thingy => {
     return result;
 };
 
-const evalBlockStatements = (statementArray: Statement[]): Thingy => {
+const evalBlockStatements = (
+    statementArray: Statement[],
+    env: Environment
+): Thingy => {
     let result: Thingy = new NullThingy();
     for (const st of statementArray) {
-        result = evalNode(st);
+        result = evalNode(st, env);
         if (result instanceof ReturnValueThingy) {
             return result; // keep wraping return value
         }
@@ -69,8 +80,11 @@ const evalBlockStatements = (statementArray: Statement[]): Thingy => {
     return result;
 };
 
-const evalPrefixOperation = (node: PrefixOperation): Thingy => {
-    const right = evalNode(node.right);
+const evalPrefixOperation = (
+    node: PrefixOperation,
+    env: Environment
+): Thingy => {
+    const right = evalNode(node.right, env);
     switch (node.operator) {
         case '!':
             return evalBangOperation(right);
@@ -101,9 +115,9 @@ const evalMinusOperation = (right: Thingy) => {
 };
 
 /** 中置演算子 */
-const evalInfixOperation = (node: InfixOperation): Thingy => {
-    const left = evalNode(node.left);
-    const right = evalNode(node.right);
+const evalInfixOperation = (node: InfixOperation, env: Environment): Thingy => {
+    const left = evalNode(node.left, env);
+    const right = evalNode(node.right, env);
     if (
         (
             [
@@ -186,13 +200,21 @@ const evalEqualityInfixOperation = (
     return NULL;
 };
 
-const evalIfExpression = (node: IfExpression): Thingy => {
-    const condition = evalNode(node.conditionExpression);
+const evalIfExpression = (node: IfExpression, env: Environment): Thingy => {
+    const condition = evalNode(node.conditionExpression, env);
     if (condition === TRUE) {
-        return evalNode(node.consequenceStatement);
+        return evalNode(node.consequenceStatement, env);
     } else if (node.alternativeStatement != null) {
-        return evalNode(node.alternativeStatement);
+        return evalNode(node.alternativeStatement, env);
     } else {
         return NULL;
     }
+};
+
+const evalIdentifier = (node: Identifier, env: Environment): Thingy => {
+    const value = env.get(node.value);
+    if (value == null) {
+        return NULL;
+    }
+    return value;
 };

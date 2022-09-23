@@ -1,8 +1,7 @@
 {
     "scripts": {
-        "watch": "nodemon --ext ts --watch src --exec node -r esbuild-register ",
         "check": "tsc --watch",
-        "main": "node -r esbuild-register src/main.ts",
+        "repl": "node -r esbuild-register src/repl.ts",
         "test": "vitest"
     },
     "devDependencies": {

@@ -1,5 +1,6 @@
 import { evalNode } from 'evaluator';
 import { Lexer } from 'lexer';
+import { Environment } from 'object';
 import { Parser } from 'parser';
 import readline from 'readline';
 
@@ -25,12 +26,13 @@ const prompt = '>> ';
  * REPLを開始する
  */
 const start = async () => {
+    const env = new Environment();
     while (true) {
         const text = await question(prompt);
         const lexer = new Lexer(text);
         const parser = new Parser(lexer);
         const astRoot = parser.parseProgram();
-        const result = evalNode(astRoot);
+        const result = evalNode(astRoot, env);
         if (result == null) {
             console.log('result is null');
         } else {
