@@ -26,7 +26,7 @@ const prompt = '>> ';
  * REPLを開始する
  */
 const start = async () => {
-    const env = new Environment();
+    const env = new Environment(null);
     while (true) {
         const text = await question(prompt);
         const lexer = new Lexer(text);

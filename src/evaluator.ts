@@ -2,7 +2,9 @@ import {
     AstRoot,
     BlockStatement,
     BooleanLiteral,
+    CallExpressioon,
     ExpresstionStatement,
+    FunctionLiteral,
     Identifier,
     IfExpression,
     InfixOperation,
@@ -16,12 +18,14 @@ import {
 import {
     BooleanThingy,
     Environment,
+    FunctionThingy,
     IntegerThingy,
     NullThingy,
     ReturnValueThingy,
     Thingy,
 } from 'object';
 import { tokens } from 'token';
+import { parseArgs } from 'util';
 
 const TRUE = new BooleanThingy(true);
 const FALSE = new BooleanThingy(false);
@@ -51,6 +55,10 @@ export const evalNode = (node: Node, env: Environment): Thingy => {
         return evalIfExpression(node, env);
     } else if (node instanceof Identifier) {
         return evalIdentifier(node, env);
+    } else if (node instanceof FunctionLiteral) {
+        return new FunctionThingy(node, env);
+    } else if (node instanceof CallExpressioon) {
+        return evalCall(node, env);
     }
     return NULL;
 };
@@ -217,4 +225,30 @@ const evalIdentifier = (node: Identifier, env: Environment): Thingy => {
         return NULL;
     }
     return value;
+};
+
+const evalCall = (node: CallExpressioon, env: Environment): Thingy => {
+    const functionThingy = evalNode(node.functionExpression, env);
+    if (!(functionThingy instanceof FunctionThingy)) return NULL;
+
+    const innerEnv = new Environment(functionThingy.env);
+
+    for (const [
+        iParam,
+        paramIdent,
+    ] of functionThingy.functionLiteral.parameterArray.entries()) {
+        const paramThingy = evalNode(node.parameterArray[iParam], env);
+        innerEnv.set(paramIdent.value, paramThingy);
+    }
+
+    const result = evalBlockStatements(
+        functionThingy.functionLiteral.body.statementArray,
+        innerEnv
+    );
+
+    if (result instanceof ReturnValueThingy) {
+        return result.value; // unwrap return value
+    }
+
+    return result;
 };

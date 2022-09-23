@@ -6,6 +6,7 @@ import { evalNode } from 'evaluator';
 import {
     BooleanThingy,
     Environment,
+    FunctionThingy,
     IntegerThingy,
     NullThingy,
     Thingy,
@@ -18,14 +19,14 @@ const checkEval = (input: string, numStatement: number) => {
     checkParseErrors(parser);
     expect(astRoot.statementArray.length).toBe(numStatement);
 
-    const env = new Environment();
+    const env = new Environment(null);
     const result = evalNode(astRoot, env);
     assert(result != null);
     return result;
 };
 
 const checkInteger = (result: Thingy, answer: number) => {
-    assert(result instanceof IntegerThingy);
+    assert(result instanceof IntegerThingy, result.inspect());
     expect(result.value).toBe(answer);
 };
 
@@ -134,6 +135,33 @@ it.concurrent('let', () => {
         ['let a = 5; 5 * a', 2, 25],
         ['let a = 5; let b = a; b', 3, 5],
         ['let a = 5; let b = a; a * b', 3, 25],
+    ] as const;
+
+    for (const [input, numStatement, answer] of tests) {
+        const result = checkEval(input, numStatement);
+        checkInteger(result, answer);
+    }
+});
+
+it.concurrent('function thingy', () => {
+    const tests = [['fn(x){x};', 1]] as const;
+
+    for (const [input, numStatement] of tests) {
+        const result = checkEval(input, numStatement);
+        assert(result instanceof FunctionThingy);
+    }
+});
+
+it.concurrent('fn', () => {
+    const tests = [
+        ['let a = fn(x){x}; a(5)', 2, 5],
+        ['let a = fn(x){ return x; }; a(5)', 2, 5],
+        ['let x = 5; let a = fn(){x}; a()', 3, 5],
+        [
+            'let a = fn(x){x + 1}; let b = fn(x, increment){increment(x)}; b(10, a)',
+            3,
+            11,
+        ],
     ] as const;
 
     for (const [input, numStatement, answer] of tests) {
