@@ -2,8 +2,8 @@ import { assert, expect, it } from 'vitest';
 import { Lexer } from 'lexer';
 import { Parser } from 'parser';
 import { checkParseErrors } from 'parser.spec';
-import { evalMonkey } from 'evaluator';
-import { BooleanMonkey, IntegerMonkey, Thingy } from 'object';
+import { evalNode } from 'evaluator';
+import { BooleanThingy, IntegerThingy, NullThingy, Thingy } from 'object';
 
 const checkEval = (input: string, numStatement: number) => {
     const lexer = new Lexer(input);
@@ -11,18 +11,18 @@ const checkEval = (input: string, numStatement: number) => {
     const astRoot = parser.parseProgram();
     checkParseErrors(parser);
     expect(astRoot.statementArray.length).toBe(numStatement);
-    const result = evalMonkey(astRoot);
+    const result = evalNode(astRoot);
     assert(result != null);
     return result;
 };
 
 const checkInteger = (result: Thingy, answer: number) => {
-    assert(result instanceof IntegerMonkey);
+    assert(result instanceof IntegerThingy);
     expect(result.value).toBe(answer);
 };
 
 const checkBoolean = (result: Thingy, answer: boolean) => {
-    assert(result instanceof BooleanMonkey);
+    assert(result instanceof BooleanThingy);
     expect(result.value).toBe(answer);
 };
 
@@ -72,5 +72,50 @@ it.concurrent('boolean', () => {
     for (const [input, answer] of tests) {
         const result = checkEval(input, 1);
         checkBoolean(result, answer);
+    }
+});
+
+it.concurrent('if', () => {
+    const tests = [
+        ['if(true) {5}', 5],
+        ['if(false) {5} else {10}', 10],
+        ['if(1 + 2) {5} else {10}', 10],
+        ['if ((1 > 3) == (2 > 5)) {5}', 5],
+    ] as const;
+
+    for (const [input, answer] of tests) {
+        const result = checkEval(input, 1);
+        checkInteger(result, answer);
+    }
+});
+
+it.concurrent('if returns NULL', () => {
+    const tests = ['if(false) {5}', 'if(10) {10}'] as const;
+
+    for (const input of tests) {
+        const result = checkEval(input, 1);
+        assert(result instanceof NullThingy);
+    }
+});
+
+it.concurrent('return', () => {
+    const tests = [
+        ['if(true) { return 5; }', 1, 5],
+        ['9; return 5; 3 * 4', 3, 5],
+        [
+            `if(true) {
+            if (true) {
+                return 5;
+            }
+            return 10;
+        }`,
+            1,
+            5,
+        ],
+    ] as const;
+
+    for (const [input, numStatement, answer] of tests) {
+        const result = checkEval(input, numStatement);
+        checkInteger(result, answer);
     }
 });

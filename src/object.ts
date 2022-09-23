@@ -1,29 +1,36 @@
-const objectTypes = {
+export const thingyTypes = {
     integeer: 'integer',
     boolean: 'boolean',
     null: 'null',
+    returnValue: 'returnValue',
 } as const;
-type ObjectType = typeof objectTypes[keyof typeof objectTypes];
+type ThingyType = typeof thingyTypes[keyof typeof thingyTypes];
 
 export interface Thingy {
-    type: ObjectType;
+    type: ThingyType;
     inspect: () => string;
 }
 
-export class IntegerMonkey implements Thingy {
+export class IntegerThingy implements Thingy {
     constructor(public value: number) {}
-    type = objectTypes.integeer;
+    type = thingyTypes.integeer;
     inspect = () => String(this.value);
 }
 
-export class BooleanMonkey implements Thingy {
+export class BooleanThingy implements Thingy {
     constructor(public value: boolean) {}
-    type = objectTypes.boolean;
+    type = thingyTypes.boolean;
     inspect = () => String(this.value);
 }
 
-export class NullMonkey implements Thingy {
+export class NullThingy implements Thingy {
     constructor() {}
-    type = objectTypes.null;
+    type = thingyTypes.null;
     inspect = () => 'null';
+}
+
+export class ReturnValueThingy implements Thingy {
+    constructor(public value: Thingy) {}
+    type = thingyTypes.returnValue;
+    inspect = () => this.value.inspect();
 }
