@@ -231,8 +231,10 @@ const evalCall = (node: CallExpressioon, env: Environment): Thingy => {
     const functionThingy = evalNode(node.functionExpression, env);
     if (!(functionThingy instanceof FunctionThingy)) return NULL;
 
+    // 現在の定義ではなく、関数が定義されたときの環境を外部環境として関数の中に渡す. (レキシカルクロージャ)
     const innerEnv = new Environment(functionThingy.env);
 
+    // 引数を評価して関数内部の環境に渡す
     for (const [
         iParam,
         paramIdent,
@@ -246,6 +248,7 @@ const evalCall = (node: CallExpressioon, env: Environment): Thingy => {
         innerEnv
     );
 
+    // 関数の外がreturnで終了しないようにunwrapする
     if (result instanceof ReturnValueThingy) {
         return result.value; // unwrap return value
     }
